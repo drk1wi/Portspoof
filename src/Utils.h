@@ -33,7 +33,6 @@
  *   forward this exception.
  */
 
- 
 
 #ifndef UTILS_H
 #define UTILS_H
@@ -50,6 +49,10 @@
 #include <syslog.h>
 #include <pthread.h>
 #include <unistd.h>
+#include <sys/stat.h>
+#include <sys/resource.h>
+#include <fcntl.h>
+#include <errno.h>
 
 #include "Configuration.h"
 
@@ -66,24 +69,19 @@ extern Configuration* configuration;
 
 using namespace std;
 
-class Utils {
-	
-	public:
-
-		static void hexdump(void *mem, unsigned int len);
-		static int isNumeric (const char * s);
-		static std::string get_substring_value(char* str);
-		static std::vector<char> wrapNMAP(string wrapper,std::vector<char> payload);
-		static std::vector<char> unescape( std::vector<char>& s);
-		static std::vector<char> str2vector( std::string& s);
-		static void log_create(const char* file);
-		static void log_write(Configuration* configuration,const char* msg);
-		static void daemonize(Configuration* configuration);
-
-
-		
+class Utils
+{
+public:
+    static void hexdump(void* mem, unsigned int len);
+    static int isNumeric(const char* s);
+    static std::string get_substring_value(char* str);
+    static std::vector<char> wrapNMAP(string wrapper, std::vector<char> payload);
+    static std::vector<char> unescape(std::vector<char>& s);
+    static std::vector<char> str2vector(std::string& s);
+    static void log_create(const char* file);
+    static void log_write(Configuration* configuration, const char* msg);
+    static void daemonize(Configuration* configuration);
 };
 
 
 #endif
-

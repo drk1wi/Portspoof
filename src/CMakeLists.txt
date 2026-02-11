@@ -1,23 +1,22 @@
 # Define sources
 set(SOURCES
-    Configuration.cpp
-    connection.cpp
-    Fuzzer.cpp
-    Portspoof.cpp
-    Server.cpp
-    Revregex.cpp
-    Utils.cpp
+        Configuration.cpp
+        connection.cpp
+        Fuzzer.cpp
+        Portspoof.cpp
+        Server.cpp
+        Revregex.cpp
+        Utils.cpp
 )
 
 # Define headers (for IDE grouping)
 set(HEADERS
-    Configuration.h
-    connection.h
-    Fuzzer.h
-    Server.h
-    Revregex.h
-    Threads.h
-    Utils.h
+        Configuration.h
+        connection.h
+        Fuzzer.h
+        Server.h
+        Revregex.h
+        Utils.h
 )
 
 # Create executable
@@ -29,9 +28,9 @@ target_link_libraries(portspoof PRIVATE Threads::Threads)
 # Add compile definition for configuration directory
 # In Autotools this was passed via -DCONFDIR='"$(sysconfdir)"'
 # For CMake, we can default to /etc unless specified
-if(NOT DEFINED CONFDIR)
+if (NOT DEFINED CONFDIR)
     set(CONFDIR "/etc")
-endif()
+endif ()
 target_compile_definitions(portspoof PRIVATE CONFDIR="${CONFDIR}")
 
 # Install rules

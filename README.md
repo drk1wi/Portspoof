@@ -4,69 +4,50 @@
 ![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20POSIX-lightgrey.svg)
 ![Build Status](https://github.com/drk1wi/portspoof/actions/workflows/cmake.yml/badge.svg)
 
-**Portspoof** is a security tool designed to enhance OS security by confusing and slowing down attackers during the reconnaissance phase. It emulates a multitude of open ports and service signatures, making it nearly impossible for scanners to identify the true attack surface of a system.
+**Portspoof** emulates open ports and service signatures across all 65535 TCP ports, turning the reconnaissance phase from a quick scan into a long, resource-intensive process. Scanners see thousands of convincing but fake services, making it impractical to identify the real attack surface.
 
 ## Table of Contents
 - [Overview](#overview)
 - [Key Features](#key-features)
-- [Portspoof Pro](#portspoof-pro-enterprise)
 - [How It Works](#how-it-works)
+- [Design Approach](#design-approach)
 - [Installation](#installation)
 - [Configuration](#configuration)
 - [Usage](#usage)
+- [Hardening with iptables](#hardening-with-iptables)
+- [Portspoof Pro](#portspoof-pro)
 - [Authors & License](#authors--license)
 
 ## Overview
 
-The primary goal of the Portspoof program is to enhance OS security through a set of techniques that make reconnaissance slow and bothersome for attackers. This is a significant shift from a standard 5-second Nmap scan that typically provides a full view of your system's running services.
+The primary goal of Portspoof is to make reconnaissance slow, costly, and unreliable for attackers. Instead of a standard 5-second Nmap scan that maps every real service on a system, an attacker facing Portspoof sees 65535 open ports, each running what looks like a different legitimate service. There is no quick way to tell which ones are real.
 
 ### Key Features
 
 *   **All 65535 TCP Ports Are Always Open:** Instead of informing an attacker that a port is CLOSED or FILTERED, Portspoof returns `SYN+ACK` for every connection attempt.
-*   **Service Emulation:** Every open TCP port emulates a legitimate service using a huge database of dynamic signatures.
-*   **Defeats Stealth Scans:** Stealth scans (SYN, ACK, etc.) become impractical because all ports are reported as `OPEN`.
-*   **Confuses Version Detection:** Responds to service probes with valid, dynamically generated signatures to fool version detection tools (like `nmap -sV`).
-*   **Slows Reconnaissance:** Increases scan times significantly (e.g., from seconds to hours) by forcing scanners to process bogus data for every port.
+*   **Service Emulation:** Over 9000 dynamic service signatures generated from regular expressions. Every port responds to probes with a different, convincing service identity.
+*   **Mixed Delivery Modes:** Each port gets a different behavioral profile at startup (immediate banner, delayed response, or silent hold) with hold times spread across a wide range. Full-range version detection (`nmap -sV -p-`) goes well beyond practical limits.
 *   **Offensive Defense:** Can be used as an 'Exploitation Framework Frontend' to exploit vulnerabilities in the attacker's own scanning tools.
-*   **Lightweight & Secure:** Runs in userland (no root privileges required!), binds to just **ONE** TCP port per running instance, and has marginal CPU/memory usage.
-*   **Massive Signature Database:** More than 9000 dynamic service signatures to feed your attackers' scanning software!
-
----
-
-### Portspoof Pro (Enterprise)
-
-For enterprise environments, **Portspoof Pro** is an advanced **Active Deception Platform** built to turn dark IP space into a high-fidelity detection grid. While the open-source version handles single-host obfuscation, Pro focuses on network-wide active defense and structured threat intelligence.
-
-**Key Advantages:**
-*   **Active Deception Grid:** Turn unused subnets and dark IP blocks into an active defense layer. A single sensor emulates thousands of IPs (e.g., entire /16 networks) with millions of open ports.
-*   **Stateful Protocol Emulation:** Takes deception to the next level by engaging attackers with fully interactive, multi-step protocol handshakes rather than just static banners.
-*   **Production-Tested Architecture:** Built with **Rust** for high-concurrency async I/O, ensuring stateless, battle-tested reliability in production environments.
-*   **Central Management:** Centralized Web UI for scalable fleet management.
-*   **Active Countermeasures:** Beyond just open ports, Pro actively tarpits and exhausts attacker resources (e.g., socket locking, slow byte responses), slowing reconnaissance on a single host from minutes to **12+ hours**.
-*   **Enterprise Telemetry:** Delivers structured, **SIEM-ready JSON** intelligence with built-in connectors and MITRE ATT&CK mapping.
-*   **Compliance:** Designed to meet **NIS2**, **DORA**, **ISO 27001**, and **NIST CSF** requirements for anomaly detection and network monitoring.
-
-[Learn more about Portspoof Pro](https://portspoof.io)
+*   **Lightweight & Secure:** Runs in userland (no root privileges required), binds to just **ONE** TCP port per running instance, and has marginal CPU/memory usage.
 
 ---
 
 ## How It Works
 
 ### 1. Defeating Port Scanners
-Stealth scans (SYN, ACK, etc.) become impractical because every port is reported as `OPEN`.
 
 **Example Nmap Scan:**
 ```bash
-$ nmap -p 1-20 127.0.0.1
-Starting Nmap 6.47 ( http://nmap.org )
-Nmap scan report for 127.0.0.1
-Host is up (0.0018s latency).
+$ nmap -p 1-20 target
+Starting Nmap 7.80 ( https://nmap.org )
+Nmap scan report for target
+Host is up (0.00016s latency).
 PORT   STATE SERVICE
 1/tcp  open  tcpmux
 2/tcp  open  compressnet
 3/tcp  open  compressnet
 4/tcp  open  unknown
-5/tcp  open  unknown
+5/tcp  open  rje
 6/tcp  open  unknown
 7/tcp  open  echo
 8/tcp  open  unknown
@@ -87,121 +68,85 @@ PORT   STATE SERVICE
 ### 2. Confusing Version Detection
 Portspoof responds to service probes with valid, dynamically generated signatures based on a massive regular expression database. As a result, an attacker will not be able to determine which port numbers your system is truly using.
 
-**Example Version Scan:**
+**Example Version Scan (ports 1–100):**
 ```bash
-$ nmap -F -sV 127.0.0.1
-Starting Nmap 6.47 ( http://nmap.org )
-Stats: 0:00:30 elapsed; 0 hosts completed (1 up), 1 undergoing Service Scan
-Nmap scan report for 127.0.0.1
-Host is up (0.21s latency).
-PORT      STATE SERVICE          VERSION
-7/tcp     open  http             Milestone XProtect video surveillance http interface (tu-ka)
-9/tcp     open  ntop-http        Ntop web interface 1ey (Q)
-13/tcp    open  ftp              VxWorks ftpd 6.a
-21/tcp    open  http             Grandstream VoIP phone http config 6193206
-22/tcp    open  http             Cherokee httpd X
-23/tcp    open  ftp              MacOS X Server ftpd (MacOS X Server 790751705)
-25/tcp    open  smtp?
-26/tcp    open  http             ZNC IRC bouncer http config 0.097 or later
-37/tcp    open  finger           NetBSD fingerd
-53/tcp    open  ftp              Rumpus ftpd
-79/tcp    open  http             Web e (Netscreen administrative web server)
-80/tcp    open  http             BitTornado tracker dgpX
-81/tcp    open  hosts2-ns?
-88/tcp    open  http             3Com OfficeConnect Firewall http config
-106/tcp   open  pop3pw?
-110/tcp   open  ipp              Virata-EmWeb nbF (HP Laserjet 4200 TN http config)
-111/tcp   open  imap             Dovecot imapd
-113/tcp   open  smtp             Xserve smtpd
-119/tcp   open  nntp?
-135/tcp   open  http             netTALK Duo http config
-139/tcp   open  http             Oversee Turing httpd kC (domain parking)
-143/tcp   open  crestron-control TiVo DVR Crestron control server
-144/tcp   open  http             Ares Galaxy P2P httpd 7942927
-179/tcp   open  http             WMI ViH (3Com 5500G-EI switch http config)
-199/tcp   open  smux?
-389/tcp   open  http-proxy       ziproxy http proxy
-427/tcp   open  vnc              (protocol 3)
-443/tcp   open  https?
-444/tcp   open  snpp?
-445/tcp   open  http             Pogoplug HBHTTP QpwKdZQ
-465/tcp   open  http             Gordian httpd 322410 (IQinVision IQeye3 webcam rtspd)
-513/tcp   open  login?
-514/tcp   open  finger           ffingerd
-515/tcp   open  pop3             Eudora Internet Mail Server X pop3d 4918451
-543/tcp   open  ftp              Dell Laser Printer z printer ftpd k
-544/tcp   open  ftp              Solaris ftpd
-548/tcp   open  http             Medusa httpd Elhmq (Sophos Anti-Virus Home http config)
-554/tcp   open  rtsp?
-587/tcp   open  http-proxy       Pound http proxy
-631/tcp   open  efi-webtools     EFI Fiery WebTools communication
-646/tcp   open  ldp?
-873/tcp   open  rsync?
-990/tcp   open  http             OpenWrt uHTTPd
-993/tcp   open  ftp              Konica Minolta bizhub printer ftpd
-995/tcp   open  pop3s?
-1025/tcp  open  sip-proxy        Comdasys SIP Server D
-1026/tcp  open  LSA-or-nterm?
-1027/tcp  open  IIS?
-1028/tcp  open  rfidquery        Mercury3 RFID Query protocol
-1029/tcp  open  smtp-proxy       ESET NOD32 anti-virus smtp proxy
-1110/tcp  open  http             qhttpd
-1433/tcp  open  http             ControlByWeb WebRelay-Quad http admin
-1720/tcp  open  H.323/Q.931?
-1723/tcp  open  pptp?
-1755/tcp  open  http             Siemens Simatic HMI MiniWeb httpd
-1900/tcp  open  tunnelvision     Tunnel Vision VPN info 69853
-2000/tcp  open  telnet           Patton SmartNode 4638 VoIP adapter telnetd
-2001/tcp  open  dc?
-2049/tcp  open  nfs?
-2121/tcp  open  http             Bosch Divar Security Systems http config
-2717/tcp  open  rtsp             Darwin Streaming Server 104621400
-3000/tcp  open  pop3             Solid pop3d
-3128/tcp  open  irc-proxy        muh irc proxy
-3306/tcp  open  ident            KVIrc fake identd
-3389/tcp  open  ms-wbt-server?
-3986/tcp  open  mapper-ws_ethd?
-4899/tcp  open  printer          QMC DeskLaser printer (Status o)
-5000/tcp  open  http             D-Link DSL-eTjM http config
-5009/tcp  open  airport-admin?
-5051/tcp  open  ssh              (protocol 325257)
-5060/tcp  open  http             apt-cache/apt-proxy httpd
-5101/tcp  open  ftp              OKI BVdqeC-ykAA VoIP adapter ftpd kHttKI
-5190/tcp  open  http             Conexant-EmWeb JqlM (Intertex IX68 WAP http config; SIPGT TyXT)
-5357/tcp  open  wsdapi?
-5432/tcp  open  postgresql?
-5631/tcp  open  irc              ircu ircd
-5666/tcp  open  litecoin-jsonrpc Litecoin JSON-RPC f_
-5800/tcp  open  smtp             Lotus Domino smtpd rT Beta y
-5900/tcp  open  ftp
-6000/tcp  open  http             httpd.js (Songbird WebRemote)
-6001/tcp  open  daap             mt-daapd DAAP TGeiZA
-6646/tcp  open  unknown
-7070/tcp  open  athinfod         Athena athinfod
-8000/tcp  open  amanda           Amanda backup system index server (broken: libsunmath.so.1 not found)
-8008/tcp  open  http?
-8009/tcp  open  ajp13?
-8080/tcp  open  http             D-Link DGL-4300 WAP http config
-8081/tcp  open  http             fec ysp (Funkwerk bintec R232B router; .h.K...z)
-8443/tcp  open  smtp
-8888/tcp  open  smtp             OpenVMS smtpd uwcDNI (OpenVMS RVqcGIr; Alpha)
-9100/tcp  open  jetdirect?
-9999/tcp  open  http             Embedded HTTPD 3BOzejtHW (Netgear MRd WAP http config; j)
-10000/tcp open  http             MikroTik router http config (RouterOS 0982808)
-32768/tcp open  filenet-tms?
-49152/tcp open  unknown
-49153/tcp open  http             ASSP Anti-Spam Proxy httpd XLgR(?)?
-49154/tcp open  http             Samsung AllShare httpd
-49155/tcp open  ftp              Synology DiskStation NAS ftpd
-49156/tcp open  aspi             ASPI server 837305
-49157/tcp open  sip              AVM FRITZ!Box |
+$ nmap -sV -p 1-100 target
+Nmap scan report for target
+Host is up (0.00016s latency).
+PORT    STATE SERVICE            VERSION
+1/tcp   open  tcpmux?
+2/tcp   open  irc                ircu ircd
+3/tcp   open  tcpwrapped
+5/tcp   open  http               Polycom CMA Global Address Book (GAB) httpd
+10/tcp  open  http               PGP Universal httpd
+11/tcp  open  http               SnapStream Media Beyond TV PVR http config
+12/tcp  open  pop3               Novell GroupWise pop3d
+13/tcp  open  http               micro_httpd
+15/tcp  open  ssh                OpenSSH r (protocol 8; NCSA GSSAPI authentication patch)
+16/tcp  open  ftp                QMS/Minolta Magicolor 2200 DeskLaser printer ftpd
+17/tcp  open  smtp               Network Box smtpd
+21/tcp  open  ftp?
+22/tcp  open  ssh                OpenSSH 8.9p1 Ubuntu 3ubuntu0.13 (Ubuntu Linux; protocol 2.0)
+23/tcp  open  tcpwrapped
+25/tcp  open  smtp?
+27/tcp  open  http               BMC/Marimba Management http config
+37/tcp  open  http               Indy httpd qlRKjiF
+39/tcp  open  pop3
+41/tcp  open  ftp                VSE ftpd WhH
+43/tcp  open  imap               Scalix imapd 6
+46/tcp  open  telnet             AXIS webcam telnetd 96747 (Linux)
+49/tcp  open  smtp               Openwave Email Mx smtpd
+50/tcp  open  http               3Ware web interface 3v (RAID storage)
+51/tcp  open  ftp                WebStar 4dftp ...
+53/tcp  open  tcpwrapped
+55/tcp  open  webdav             Tonido WebDAV
+56/tcp  open  tor-control        Tor control port (Authentication required)
+59/tcp  open  irc                ircu ircd
+60/tcp  open  rtsp               GStreamer rtspd
+64/tcp  open  http               BaseHTTPServer CAxoE (Mercurial hg serve; Python LDkW)
+66/tcp  open  telnet             Slirp PPP/SLIP-on-terminal emulator telnetd
+70/tcp  open  smtp               qpsmtpd
+71/tcp  open  smtp               Microsoft Exchange smtpd
+73/tcp  open  http               Avaya IP Office VoIP PBX httpd
+77/tcp  open  smtp               Zeus SMTPS smtpd
+79/tcp  open  ftp                Sambar ftpd
+80/tcp  open  tcpwrapped
+81/tcp  open  imap-proxy         nginx imap proxy
+82/tcp  open  ssh                (protocol 811)
+83/tcp  open  http               peercast.org
+88/tcp  open  csta               Alcatel OmniPCX Enterprise
+90/tcp  open  http               WASD httpd
+91/tcp  open  http               Fortinet FortiGate 50B firewall http config
+93/tcp  open  imap               ModusMail imapd 4
+98/tcp  open  ssh                Sysax Multi Server sshd 7 (protocol 940)
+99/tcp  open  http               2Wire HomePortal http config 5473
+100/tcp open  newacct?
 ```
 
 ### The Result
-By using these techniques together:
-*   Attackers will have a tough time identifying your real services.
-*   The only way to determine if a service is emulated is through a protocol probe (imagine probing protocols for 65k open ports!).
-*   It takes more than 8 hours and 200MB of sent data to properly go through the reconnaissance phase for your system (equivalent to `nmap -sV -p -`).
+Combined, these techniques mean:
+*   There is no fast way to distinguish real services from fake ones. Timing, behavior, and banner content all vary across the port range.
+*   A full version scan (`nmap -sV -p-`) with default tarpit settings takes 10+ hours and generates hundreds of megabytes of bogus data.
+*   The attacker's scanner burns time and threads on connections that lead nowhere.
+
+---
+
+### Design Approach
+
+Real services (SSH, SMTP, FTP, HTTP) send a banner and keep the connection open, waiting for client input. Convincing emulation means doing the same: accept, send, hold. But a thread-per-client model burns memory and CPU on context switching, and at scale the defender runs out of resources before the attacker runs out of patience. The deception tool becomes a self-DOS vector.
+
+**The approach:** a single-threaded `epoll` event loop. Each port is assigned a delivery mode at startup: some push a banner immediately, some wait for the client to send data before responding, and some stay silent. Hold times are spread across orders of magnitude (tens of milliseconds to minutes) with per-connection jitter, so repeated probes to the same port don't return identical timing.
+
+This matters because without it, an attacker can send garbage to every port and measure response timing: real services close fast (wrong protocol), while a naive tarpit holds for seconds. With mixed modes and a wide timing spread, thousands of fake ports also close in the same range as real services. There's no clean threshold to filter on.
+
+The economics work because of asymmetry:
+
+- **Defender cost:** ~1–2 KB kernel memory per idle connection. The epoll loop is single-threaded, no context switching overhead. A modest box holds 10k+ concurrent connections without breaking a sweat.
+- **Attacker cost:** time and effort. A port scan tells them nothing — every port is open. To find real services they need version detection across all 65535 ports, then protocol-level probing on anything that looks plausible. A 5-second scan becomes 10+ hours of active work, the result is still a haystack, and most attackers move on to an easier target.
+
+Per-port delivery modes are fixed for the lifetime of the process but unpredictable across restarts. Hold times have a per-connection random component so repeated probes show natural variance, similar to real services under load.
+
+**v2.0** replaces the original banner-and-close behavior that was vulnerable to a connection-closure bypass (see Vicarius/Hored1971 blog post). The tarpit engine holds all connections open with mixed timing, defeating connection-closure filtering, timing fingerprinting, banner analysis, and statistical pattern modeling.
 
 ---
 
@@ -229,10 +174,11 @@ Redirect all incoming TCP traffic (ports 1-65535) to the Portspoof port (default
 
 **Linux (iptables):**
 ```bash
-# Redirect traffic from eth0 to Portspoof
-sudo iptables -t nat -A PREROUTING -i eth0 -p tcp -m tcp --dport 1:65535 -j REDIRECT --to-ports 4444
+# Exclude real services first, then redirect the rest to Portspoof
+sudo iptables -t nat -A PREROUTING -i eth0 -p tcp --dport 22 -j RETURN
+sudo iptables -t nat -A PREROUTING -i eth0 -p tcp -j REDIRECT --to-ports 4444
 ```
-*Note: Replace `eth0` with your actual network interface name.*
+*Note: Replace `eth0` with your network interface. Add a RETURN rule for each port running a real service.*
 
 To make this persistent, you can save your iptables rules or use the `iptables-config` provided in the `system_files` directory.
 
@@ -249,8 +195,13 @@ This mode generates and feeds port scanners with bogus service signatures.
 portspoof -c /etc/portspoof.conf -s /etc/portspoof_signatures -D
 ```
 
+With custom tarpit timings (hold each connection between 10 and 60 seconds):
+```bash
+portspoof -s /etc/portspoof_signatures -t 10 -T 60 -D
+```
+
 ### Open Port Mode
-This mode simply returns an `OPEN` state for every connection attempt without sending service banners.
+This mode simply returns an `OPEN` state for every connection attempt without sending service banners. Connections are still tarpitted.
 ```bash
 portspoof -D
 ```
@@ -268,6 +219,67 @@ portspoof -1 -v
 ```bash
 portspoof -f payloads.txt -v
 ```
+
+---
+
+## Hardening with iptables
+
+The basic REDIRECT rule above works, but an aggressive scanner can still try to overwhelm Portspoof with connections. The following ruleset adds rate limiting and automatic banning for hosts that exceed the connection threshold. Ports hosting real services (SSH in this example) are excluded from the redirect but still protected by the global ban rule.
+
+```bash
+# --- NAT: redirect everything except real services ---
+# add a RETURN rule for each port you actually use (SSH, HTTP, etc.)
+iptables -t nat -A PREROUTING -p tcp --dport 22 -j RETURN
+iptables -t nat -A PREROUTING -p tcp -j REDIRECT --to-ports 4444
+
+# --- FILTER: defense in depth ---
+
+# allow loopback (critical: prevents breaking local services)
+iptables -A INPUT -i lo -j ACCEPT
+
+# if this IP was flagged as abusive, drop everything (silent, no RST)
+iptables -A INPUT -m recent --name PORTSCAN --rcheck --seconds 60 -j DROP
+
+# rate-limit new SYNs per source IP
+iptables -A INPUT -p tcp --syn -m hashlimit \
+  --hashlimit-above 10/sec --hashlimit-burst 30 \
+  --hashlimit-mode srcip --hashlimit-name syn_throttle -j DROP
+
+# if a single IP holds 100+ connections to portspoof, flag and drop
+iptables -A INPUT -p tcp --syn --dport 4444 -m connlimit \
+  --connlimit-above 100 --connlimit-mask 32 \
+  -m recent --name PORTSCAN --set -j DROP
+
+# allow established traffic and new connections
+iptables -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
+iptables -A INPUT -p tcp --syn -j ACCEPT
+iptables -A INPUT -j DROP
+```
+
+For high-traffic deployments, increase the `xt_recent` list size:
+
+```bash
+echo "options xt_recent ip_list_tot=10000" > /etc/modprobe.d/xt_recent.conf
+```
+
+And tune kernel connection tracking:
+```bash
+sysctl -w net.netfilter.nf_conntrack_max=131072
+sysctl -w net.core.somaxconn=4096
+```
+
+---
+
+## Portspoof Pro
+
+[**Portspoof Pro**](https://portspoof.io) scales deception from a single host to an entire network. A single sensor emulates full /16 networks: thousands of IPs, each with unique services across all ports, holding stateful multi-step conversations.
+
+*   **Network-wide deception.** Turn dark IP space and unused subnets into an active deception grid. Every emulated host presents unique services with a different personality per source IP. Active tarpitting exhausts attacker socket pools and throttles automated tools.
+*   **Scan detection and tool fingerprinting.** Detects SYN, FIN, NULL, XMAS, ACK scan techniques. Fingerprints Nmap, Masscan, ZMap, and custom scanners. Structured JSON telemetry with MITRE ATT&CK mapping, streamed to your SIEM.
+*   **Production-safe deployment.** Runs in a sandboxed environment alongside production traffic. Routing policies steer deception traffic to the sensor. No inline taps, no risk to real workloads.
+*   **Compliance out of the box.** Supports NIS2, DORA, ISO 27001, NIST CSF, and CIS Controls.
+
+[portspoof.io](https://portspoof.io)
 
 ---
 

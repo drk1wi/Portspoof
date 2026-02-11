@@ -32,7 +32,6 @@
  *   also makes it possible to release a modified version which carries
  *   forward this exception.
  */
- 
 
 
 #include <stdio.h>
@@ -54,11 +53,9 @@ using namespace std;
 
 std::vector<char> process_signature(std::string str);
 
-char * revregex_bracket(char * str,int start_offset,int end_offset, int* retlen);
-char * fill_specialchars(char * str, int* param_len, int start_offset,int end_offset);
-char* revregex(char * param_str,int* param_len,int start_offset,int end_offset);
+char* revregex_bracket(char* str, int start_offset, int end_offset, int* retlen);
+char* fill_specialchars(char* str, int* param_len, int start_offset, int end_offset);
+char* revregex(char* param_str, int* param_len, int start_offset, int end_offset);
 int char2hex(char* ptr);
 int ishex(char* ch);
-char * escape_hex(char* str,int* final_len);
-
-
+char* escape_hex(char* str, int* final_len);

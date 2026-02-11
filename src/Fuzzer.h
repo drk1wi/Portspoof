@@ -34,8 +34,6 @@
  */
 
 
- 
-
 #ifndef FUZZER_H
 #define FUZZER_H
 
@@ -46,9 +44,9 @@
 #include <vector>
 #include <sstream>
 #include <unistd.h>
-#include <algorithm> 
+#include <algorithm>
 #include <iostream>
-#include <ctime> 
+#include <ctime>
 #include <pthread.h>
 #include <iostream>
 #include <string>
@@ -64,50 +62,50 @@ using namespace std;
 #define NMAP_FUZZ_FILE_SIG "nmapfuzzsignatures"
 #define FUZZ_FILE_PAYLOAD "nmapfuzzpayloads"
 
- static const char* const   fuzz_oracle[]=
+static const char* const fuzz_oracle[] =
 {
-"A",
-"%n%n%n%n%n",
-"%%20n",
-"%n%p%s%d%x",
-"%.1024d",
-"%.2049d",
-"-1",
-"32767",
-"65535",
-"-2147483647",
-"0xffffffff",
-"a|id > /tmp/FZ|b",
-"a`id > /tmp/FZ`b",
-"a'id > /tmp/FZ'b",
-"a;id > /tmp/FZ;b",
-"a&&id > /tmp/FZ&&b"
+    "A",
+    "%n%n%n%n%n",
+    "%%20n",
+    "%n%p%s%d%x",
+    "%.1024d",
+    "%.2049d",
+    "-1",
+    "32767",
+    "65535",
+    "-2147483647",
+    "0xffffffff",
+    "a|id > /tmp/FZ|b",
+    "a`id > /tmp/FZ`b",
+    "a'id > /tmp/FZ'b",
+    "a;id > /tmp/FZ;b",
+    "a&&id > /tmp/FZ&&b"
 };
 
 
-class Fuzzer{
-	private:
-	
-		std::string nmapfuzzsignatures_file;
-		std::string fuzzpayload_file;
-		Nmap_Fuzz_Vector nmapfuzzsignatures;
-		FILE *fp_payloads;
-		std::vector<char> input_line;
-		Configuration* configuration;
-		int counter;
-		int payload_counter;
-		int nmapfuzzsignatures_size;
-		
-	public:
-		Fuzzer();
-		Fuzzer(Configuration* configuration);
-		bool processSignatureFile();
-		std::vector<char> GetFUZZ();
-		std::vector<char> GenerateFuzzPayload();		
-		std::vector<char> intToBytes(int paramInt);
-		std::vector<char> shortToBytes(unsigned short paramInt);
-				
-		bool PrepareFuzzer();
+class Fuzzer
+{
+private:
+    std::string nmapfuzzsignatures_file;
+    std::string fuzzpayload_file;
+    Nmap_Fuzz_Vector nmapfuzzsignatures;
+    FILE* fp_payloads;
+    std::vector<char> input_line;
+    Configuration* configuration;
+    int counter;
+    int payload_counter;
+    int nmapfuzzsignatures_size;
+
+public:
+    Fuzzer();
+    Fuzzer(Configuration* configuration);
+    bool processSignatureFile();
+    std::vector<char> GetFUZZ();
+    std::vector<char> GenerateFuzzPayload();
+    std::vector<char> intToBytes(int paramInt);
+    std::vector<char> shortToBytes(unsigned short paramInt);
+
+    bool PrepareFuzzer();
 };
 
 
