@@ -157,12 +157,16 @@ std::vector<char> Fuzzer::GetFUZZ()
 
             if (fgets(buf_file, BUFSIZE, this->fp_payloads) == NULL)
             {
-                fprintf(stdout, "EOF of payload file\n");
+                fprintf(stdout, "EOF of payload file, rewinding\n");
                 fflush(stdout);
+                rewind(this->fp_payloads);
+                if (fgets(buf_file, BUFSIZE, this->fp_payloads) == NULL)
+                    buf_file[0] = '\0'; // payload file is empty, nothing to read
             }
 
             str = std::string(buf_file);
-            str.erase(str.size() - 1); //remove \n
+            if (!str.empty() && str.back() == '\n') //remove trailing \n, if any
+                str.erase(str.size() - 1);
             this->input_line = Utils::str2vector(str);
         }
 
