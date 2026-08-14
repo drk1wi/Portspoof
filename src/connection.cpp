@@ -42,6 +42,10 @@
 #include "connection.h"
 #include "Configuration.h"
 
+#ifndef IP6T_SO_ORIGINAL_DST
+#define IP6T_SO_ORIGINAL_DST 80
+#endif
+
 extern Configuration* configuration;
 
 struct timeout_entry
@@ -130,9 +134,9 @@ static void conn_close(int fd, int epfd, struct conn_state* cs, int* nactive)
 static void do_accept(int listenfd, int epfd, struct conn_state* cs,
                       int maxfd, Configuration* conf, int* nactive, timeout_heap& heap)
 {
-    struct sockaddr_in peer;
+    struct sockaddr_storage peer;
     socklen_t peerlen;
-    struct sockaddr_in orig;
+    struct sockaddr_storage orig;
     socklen_t origlen;
     int fd;
     uint64_t now = mono_now();
@@ -145,6 +149,29 @@ static void do_accept(int listenfd, int epfd, struct conn_state* cs,
         {
             if (errno == EAGAIN || errno == EWOULDBLOCK)
                 break;
+            if (errno == EMFILE || errno == ENFILE)
+            {
+                int victim = -1;
+                while (!heap.empty())
+                {
+                    const timeout_entry& top = heap.top();
+                    int v = top.fd;
+                    uint32_t gen = top.gen;
+                    heap.pop();
+                    
+                    if (cs[v].phase != 0 && cs[v].gen == gen)
+                    {
+                        victim = v;
+                        break;
+                    }
+                }
+                if (victim >= 0)
+                {
+                    conn_close(victim, epfd, cs, nactive);
+                    continue;
+                }
+                // If no connections to evict, we have a leak or something else took fds. Break to avoid spin.
+            }
             perror("accept");
             break;
         }
@@ -156,16 +183,17 @@ static void do_accept(int listenfd, int epfd, struct conn_state* cs,
              * free a slot for the next accept() call. */
             close(fd);
             int victim = -1;
-            uint64_t earliest = UINT64_MAX;
-            for (int v = 0; v < maxfd; v++)
+            while (!heap.empty())
             {
-                if (cs[v].phase == 0)
-                    continue;
-                uint64_t exp = cs[v].t_accept + cs[v].t_timeout;
-                if (exp < earliest)
+                const timeout_entry& top = heap.top();
+                int v = top.fd;
+                uint32_t gen = top.gen;
+                heap.pop();
+                
+                if (cs[v].phase != 0 && cs[v].gen == gen)
                 {
-                    earliest = exp;
                     victim = v;
+                    break;
                 }
             }
             if (victim >= 0)
@@ -177,11 +205,26 @@ static void do_accept(int listenfd, int epfd, struct conn_state* cs,
 
         /* get the port the scanner was actually aiming for */
         origlen = sizeof(orig);
-        uint16_t dport = DEFAULT_PORT;
-        if (getsockopt(fd, SOL_IP, SO_ORIGINAL_DST,
-                       (struct sockaddr*)&orig, &origlen) == 0)
+        uint16_t dport = conf->getPort() ? conf->getPort() : DEFAULT_PORT;
+
+        if (getsockopt(fd, SOL_IP, SO_ORIGINAL_DST, &orig, &origlen) == 0)
         {
-            dport = ntohs(orig.sin_port);
+            dport = ntohs(((struct sockaddr_in*)&orig)->sin_port);
+        }
+        else if (getsockopt(fd, SOL_IPV6, IP6T_SO_ORIGINAL_DST, &orig, &origlen) == 0)
+        {
+            dport = ntohs(((struct sockaddr_in6*)&orig)->sin6_port);
+        }
+        else
+        {
+            origlen = sizeof(orig);
+            if (getsockname(fd, (struct sockaddr*)&orig, &origlen) == 0)
+            {
+                if (orig.ss_family == AF_INET)
+                    dport = ntohs(((struct sockaddr_in*)&orig)->sin_port);
+                else if (orig.ss_family == AF_INET6)
+                    dport = ntohs(((struct sockaddr_in6*)&orig)->sin6_port);
+            }
         }
 
         /* look up the banner for this port */

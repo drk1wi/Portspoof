@@ -43,6 +43,7 @@
 #include <sys/resource.h>
 #include <sys/eventfd.h>
 #include <netinet/in.h>
+#include <netdb.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <signal.h>

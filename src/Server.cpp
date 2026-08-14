@@ -102,47 +102,67 @@ Server::Server(Configuration* configuration)
     epoll_ctl(epfd, EPOLL_CTL_ADD, shutfd, &ev);
 
     /* tcp listen socket */
-    listenfd = socket(PF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0);
-    if (listenfd == -1)
-    {
-        perror("Socket creation error");
-        exit(1);
-    }
+    struct addrinfo hints, *res, *p;
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_flags = AI_PASSIVE;
 
-    int reuse = 1;
-    setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse));
-
-    memset(&my_name, 0, sizeof(my_name));
-    my_name.sin_family = PF_INET;
-
+    const char* ip_str = NULL;
     if (configuration->getConfigValue(OPT_IP))
     {
-        fprintf(stdout, "-> Binding to iface: %s\n",
-                configuration->getBindIP().c_str());
-        inet_aton(configuration->getBindIP().c_str(), &my_name.sin_addr);
+        ip_str = configuration->getBindIP().c_str();
+        fprintf(stdout, "-> Binding to iface: %s\n", ip_str);
     }
     else
     {
-        my_name.sin_addr.s_addr = INADDR_ANY;
+        // If binding to any interface, prefer IPv6 (which handles IPv4 via v4-mapped)
+        hints.ai_family = AF_INET6;
     }
-
+    
+    char port_str[16];
+    snprintf(port_str, sizeof(port_str), "%d", configuration->getConfigValue(OPT_PORT) ? configuration->getPort() : DEFAULT_PORT);
+    
     if (configuration->getConfigValue(OPT_PORT))
     {
-        fprintf(stdout, "-> Binding to port: %d\n",
-                configuration->getPort());
-        my_name.sin_port = htons(configuration->getPort());
-    }
-    else
-    {
-        my_name.sin_port = htons(DEFAULT_PORT);
+        fprintf(stdout, "-> Binding to port: %s\n", port_str);
     }
 
-    status = bind(listenfd, (struct sockaddr*)&my_name, sizeof(my_name));
-    if (status == -1)
+    if (getaddrinfo(ip_str, port_str, &hints, &res) != 0)
     {
-        perror("Binding error");
+        perror("getaddrinfo error");
         exit(1);
     }
+
+    for (p = res; p != NULL; p = p->ai_next)
+    {
+        listenfd = socket(p->ai_family, p->ai_socktype | SOCK_NONBLOCK, p->ai_protocol);
+        if (listenfd == -1)
+            continue;
+
+        int reuse = 1;
+        setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse));
+        
+        if (p->ai_family == AF_INET6)
+        {
+            int no = 0;
+            setsockopt(listenfd, IPPROTO_IPV6, IPV6_V6ONLY, &no, sizeof(no));
+        }
+
+        if (bind(listenfd, p->ai_addr, p->ai_addrlen) == 0)
+            break;
+
+        close(listenfd);
+    }
+
+    if (p == NULL)
+    {
+        perror("Binding error");
+        freeaddrinfo(res);
+        exit(1);
+    }
+    
+    freeaddrinfo(res);
 
     status = listen(listenfd, 1024);
     if (status == -1)
