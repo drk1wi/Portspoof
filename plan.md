@@ -1,3 +1,0 @@
-- [ ] Fix IPv6 and TPROXY bypass in destination port resolution
-- [ ] Fix CPU exhaustion (O(N) search) when maxfd is reached by using the min-heap
-- [ ] Fix sockaddr truncation in accept() by using sockaddr_storage
