@@ -1,6 +1,6 @@
 # Portspoof
 
-![License](https://img.shields.io/badge/license-GPLv2-blue.svg)
+![License](https://img.shields.io/badge/license-GPLv3-blue.svg)
 ![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20POSIX-lightgrey.svg)
 ![Build Status](https://github.com/drk1wi/portspoof/actions/workflows/cmake.yml/badge.svg)
 
@@ -287,7 +287,7 @@ sysctl -w net.core.somaxconn=4096
 
 **Author:** Piotr Duszyński ([@drk1wi](https://twitter.com/drk1wi))
 
-**License:** GNU General Public License v2.0 (GPLv2). See the `LICENSE` file for details.
+**License:** GNU General Public License v3.0 (GPLv3). See the `LICENSE` file for details.
 
 For commercial, legitimate applications, please contact the author for the appropriate licensing arrangements.
 
