@@ -268,6 +268,8 @@ sysctl -w net.netfilter.nf_conntrack_max=131072
 sysctl -w net.core.somaxconn=4096
 ```
 
+For stability under heavy scanning, also raise Portspoof's process file-descriptor limit in the launcher (it runs unprivileged and cannot raise it itself): `LimitNOFILE=1048576` in a systemd unit, or `--ulimit nofile=1048576:1048576` for Docker.
+
 ---
 
 ## Portspoof Pro
