@@ -274,12 +274,7 @@ For stability under heavy scanning, also raise Portspoof's process file-descript
 
 ## Portspoof Pro
 
-[**Portspoof Pro**](https://portspoof.io) scales deception from a single host to an entire network. A single sensor emulates full /16 networks: thousands of IPs, each with unique services across all ports, holding stateful multi-step conversations.
-
-*   **Network-wide deception.** Turn dark IP space and unused subnets into an active deception grid. Every emulated host presents unique services with a different personality per source IP. Active tarpitting exhausts attacker socket pools and throttles automated tools.
-*   **Scan detection and tool fingerprinting.** Detects SYN, FIN, NULL, XMAS, ACK scan techniques. Fingerprints Nmap, Masscan, ZMap, and custom scanners. Structured JSON telemetry with MITRE ATT&CK mapping, streamed to your SIEM.
-*   **Production-safe deployment.** Runs in a sandboxed environment alongside production traffic. Routing policies steer deception traffic to the sensor. No inline taps, no risk to real workloads.
-*   **Compliance out of the box.** Supports NIS2, DORA, ISO 27001, NIST CSF, and CIS Controls.
+[**Portspoof Pro**](https://portspoof.io) scales the same deception from a single host to entire networks. One out-of-band sensor covers your unused address space with no agents and no production impact, and policy-based routing puts it wherever you need it. Every port answers with its own TCP/UDP signature, and every interaction is captured in full, classified, and profiled at a low false-positive rate, then streamed to your SIEM/SOAR. It catches lateral movement and automated scanning, runs fully sandboxed and isolated, and maps to the frameworks you report against: NIS2, DORA, ISO 27001, NIST CSF, and CIS.
 
 [portspoof.io](https://portspoof.io)
 
